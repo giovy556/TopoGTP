@@ -4,8 +4,8 @@
 (function () {
   const STORAGE_KEY = 'topogtp_supabase_config_v1';
   const CONFIG_VERSION_KEY = 'topogtp_team_config_version';
-  const CONFIG_VERSION = '2026-09-15-v2';
-  const DEFAULT_URL = 'https://uxlofvwwutklgvsyadzxp.supabase.co';
+  const CONFIG_VERSION = '2026-09-15-v3';
+  const DEFAULT_URL = 'https://uxlofwwutklgvsyadzxp.supabase.co';
   const DEFAULT_KEY = 'sb_publishable_YL_FuQLIl1gXJc7wX7JrmA_W1dR9iXx';
 
   // Elimina una sola volta eventuali vecchi override salvati nel browser.
