@@ -1,14 +1,16 @@
 // TopoGTP - configurazione database condiviso.
-// SUPABASE_URL e SUPABASE_ANON_KEY sono valori pubblici per natura nelle web app.
+// Project URL e Publishable key sono valori pubblici per natura nelle web app.
 // La sicurezza effettiva e' gestita dalle policy RLS di Supabase.
 (function () {
   const STORAGE_KEY = 'topogtp_supabase_config_v1';
+  const DEFAULT_URL = 'https://uxlofvwwutklgvsyadzxp.supabase.co';
+  const DEFAULT_KEY = 'sb_publishable_YL_FuQLIl1gXJc7wX7JrmA_W1dR9iXx';
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (_) {}
 
   window.TOPOGTP_CONFIG = {
-    SUPABASE_URL: saved.SUPABASE_URL || '',
-    SUPABASE_ANON_KEY: saved.SUPABASE_ANON_KEY || '',
+    SUPABASE_URL: saved.SUPABASE_URL || DEFAULT_URL,
+    SUPABASE_ANON_KEY: saved.SUPABASE_ANON_KEY || DEFAULT_KEY,
     APP_NAME: 'TopoGTP',
     KNOWLEDGE_TABLE: 'knowledge_entries'
   };
@@ -33,7 +35,7 @@
     wrap.innerHTML = `
       <div style="width:min(520px,100%);background:#0b1b2b;border:1px solid #24445f;border-radius:20px;padding:22px;color:#eef7ff;box-shadow:0 24px 60px rgba(0,0,0,.45);font-family:Inter,Segoe UI,Arial,sans-serif">
         <h2 style="margin:0 0 7px">Database condiviso TopoGTP</h2>
-        <p style="margin:0 0 16px;color:#96adc1;line-height:1.5">Inserisci i dati del progetto Supabase una sola volta su questo dispositivo. Dopo il salvataggio TopoGTP userà il database centrale del team.</p>
+        <p style="margin:0 0 16px;color:#96adc1;line-height:1.5">TopoGTP e' gia collegato al database centrale del team. Usa questi campi solo se in futuro vuoi cambiare progetto Supabase.</p>
         <label style="display:block;font-size:12px;color:#96adc1;font-weight:700;margin:9px 0 6px">Project URL</label>
         <input id="tgSupabaseUrl" value="${String(cfg.SUPABASE_URL || '').replace(/"/g,'&quot;')}" placeholder="https://xxxx.supabase.co" style="width:100%;background:#071521;border:1px solid #24445f;color:#fff;border-radius:11px;padding:11px 12px;outline:none">
         <label style="display:block;font-size:12px;color:#96adc1;font-weight:700;margin:12px 0 6px">Anon / Publishable key</label>
@@ -41,9 +43,9 @@
         <div style="display:flex;gap:9px;margin-top:15px;flex-wrap:wrap">
           <button id="tgSaveDb" style="border:0;border-radius:11px;padding:11px 13px;background:#38bdf8;color:#03131d;font-weight:800;cursor:pointer">Salva e collega</button>
           <button id="tgCloseDb" style="border:1px solid #24445f;border-radius:11px;padding:11px 13px;background:#10243a;color:#fff;cursor:pointer">Chiudi</button>
-          <button id="tgResetDb" style="margin-left:auto;border:1px solid #62303a;border-radius:11px;padding:11px 13px;background:#351820;color:#ffd7dc;cursor:pointer">Rimuovi configurazione</button>
+          <button id="tgResetDb" style="margin-left:auto;border:1px solid #62303a;border-radius:11px;padding:11px 13px;background:#351820;color:#ffd7dc;cursor:pointer">Ripristina database team</button>
         </div>
-        <div id="tgDbMsg" style="font-size:12px;color:#96adc1;margin-top:12px;line-height:1.45">La chiave anon/publishable può stare nel frontend; non inserire mai service_role o chiavi segrete.</div>
+        <div id="tgDbMsg" style="font-size:12px;color:#96adc1;margin-top:12px;line-height:1.45">Non inserire mai service_role o chiavi segrete.</div>
       </div>`;
     document.body.appendChild(wrap);
     document.getElementById('tgCloseDb').onclick = () => wrap.remove();
@@ -61,7 +63,6 @@
     };
   }
 
-  // Dopo il caricamento aggiunge sempre il pulsante di configurazione.
   window.addEventListener('DOMContentLoaded', addSetupButton);
 
   // Migrazione una tantum: se esistono conoscenze locali aggiunte in precedenza,
