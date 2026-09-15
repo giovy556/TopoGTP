@@ -3,8 +3,21 @@
 // La sicurezza effettiva e' gestita dalle policy RLS di Supabase.
 (function () {
   const STORAGE_KEY = 'topogtp_supabase_config_v1';
+  const CONFIG_VERSION_KEY = 'topogtp_team_config_version';
+  const CONFIG_VERSION = '2026-09-15-v2';
   const DEFAULT_URL = 'https://uxlofvwwutklgvsyadzxp.supabase.co';
   const DEFAULT_KEY = 'sb_publishable_YL_FuQLIl1gXJc7wX7JrmA_W1dR9iXx';
+
+  // Elimina una sola volta eventuali vecchi override salvati nel browser.
+  // Questo evita che un URL/chiave inseriti durante i test precedenti sostituiscano
+  // la configurazione ufficiale del database del team.
+  try {
+    if (localStorage.getItem(CONFIG_VERSION_KEY) !== CONFIG_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(CONFIG_VERSION_KEY, CONFIG_VERSION);
+    }
+  } catch (_) {}
+
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (_) {}
 
@@ -37,9 +50,9 @@
         <h2 style="margin:0 0 7px">Database condiviso TopoGTP</h2>
         <p style="margin:0 0 16px;color:#96adc1;line-height:1.5">TopoGTP e' gia collegato al database centrale del team. Usa questi campi solo se in futuro vuoi cambiare progetto Supabase.</p>
         <label style="display:block;font-size:12px;color:#96adc1;font-weight:700;margin:9px 0 6px">Project URL</label>
-        <input id="tgSupabaseUrl" value="${String(cfg.SUPABASE_URL || '').replace(/"/g,'&quot;')}" placeholder="https://xxxx.supabase.co" style="width:100%;background:#071521;border:1px solid #24445f;color:#fff;border-radius:11px;padding:11px 12px;outline:none">
-        <label style="display:block;font-size:12px;color:#96adc1;font-weight:700;margin:12px 0 6px">Anon / Publishable key</label>
-        <textarea id="tgSupabaseKey" placeholder="Incolla la chiave anon/publishable" style="width:100%;min-height:92px;resize:vertical;background:#071521;border:1px solid #24445f;color:#fff;border-radius:11px;padding:11px 12px;outline:none">${String(cfg.SUPABASE_ANON_KEY || '').replace(/</g,'&lt;')}</textarea>
+        <input id="tgSupabaseUrl" value="${String(cfg.SUPABASE_URL || '').replace(/"/g,'&quot;')}" style="width:100%;background:#071521;border:1px solid #24445f;color:#fff;border-radius:11px;padding:11px 12px;outline:none">
+        <label style="display:block;font-size:12px;color:#96adc1;font-weight:700;margin:12px 0 6px">Publishable key</label>
+        <textarea id="tgSupabaseKey" style="width:100%;min-height:92px;resize:vertical;background:#071521;border:1px solid #24445f;color:#fff;border-radius:11px;padding:11px 12px;outline:none">${String(cfg.SUPABASE_ANON_KEY || '').replace(/</g,'&lt;')}</textarea>
         <div style="display:flex;gap:9px;margin-top:15px;flex-wrap:wrap">
           <button id="tgSaveDb" style="border:0;border-radius:11px;padding:11px 13px;background:#38bdf8;color:#03131d;font-weight:800;cursor:pointer">Salva e collega</button>
           <button id="tgCloseDb" style="border:1px solid #24445f;border-radius:11px;padding:11px 13px;background:#10243a;color:#fff;cursor:pointer">Chiudi</button>
@@ -49,14 +62,25 @@
       </div>`;
     document.body.appendChild(wrap);
     document.getElementById('tgCloseDb').onclick = () => wrap.remove();
-    document.getElementById('tgResetDb').onclick = () => { localStorage.removeItem(STORAGE_KEY); location.reload(); };
+    document.getElementById('tgResetDb').onclick = () => {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+      location.reload();
+    };
     document.getElementById('tgSaveDb').onclick = () => {
       const url = document.getElementById('tgSupabaseUrl').value.trim().replace(/\/$/, '');
       const key = document.getElementById('tgSupabaseKey').value.trim();
       const msg = document.getElementById('tgDbMsg');
-      if (!/^https:\/\/.+\.supabase\.co$/i.test(url)) { msg.textContent = 'Project URL non valido.'; msg.style.color = '#ff9ca7'; return; }
-      if (key.length < 30) { msg.textContent = 'Chiave Supabase non valida.'; msg.style.color = '#ff9ca7'; return; }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ SUPABASE_URL:url, SUPABASE_ANON_KEY:key }));
+      if (!/^https:\/\/.+\.supabase\.co$/i.test(url)) {
+        msg.textContent = 'Project URL non valido.';
+        msg.style.color = '#ff9ca7';
+        return;
+      }
+      if (!key.startsWith('sb_publishable_')) {
+        msg.textContent = 'Usa la Publishable key che inizia con sb_publishable_.';
+        msg.style.color = '#ff9ca7';
+        return;
+      }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ SUPABASE_URL:url, SUPABASE_ANON_KEY:key })); } catch (_) {}
       msg.textContent = 'Configurazione salvata. Ricarico TopoGTP…';
       msg.style.color = '#2ee6a6';
       setTimeout(() => location.reload(), 350);
@@ -65,8 +89,7 @@
 
   window.addEventListener('DOMContentLoaded', addSetupButton);
 
-  // Migrazione una tantum: se esistono conoscenze locali aggiunte in precedenza,
-  // prova a copiarle nel database centrale evitando duplicati titolo+contenuto.
+  // Migrazione una tantum delle conoscenze locali verso il database centrale.
   window.addEventListener('load', () => {
     let attempts = 0;
     const timer = setInterval(async () => {
@@ -77,8 +100,11 @@
           if (localStorage.getItem('topogtp_migrated_to_supabase_v1') === '1') return;
           let local = [];
           try { local = JSON.parse(localStorage.getItem('topogtp_knowledge_v3') || '[]'); } catch (_) {}
-          if (!Array.isArray(local) || !local.length) { localStorage.setItem('topogtp_migrated_to_supabase_v1','1'); return; }
-          const table = (window.TOPOGTP_CONFIG && window.TOPOGTP_CONFIG.KNOWLEDGE_TABLE) || 'knowledge_entries';
+          if (!Array.isArray(local) || !local.length) {
+            localStorage.setItem('topogtp_migrated_to_supabase_v1','1');
+            return;
+          }
+          const table = window.TOPOGTP_CONFIG.KNOWLEDGE_TABLE || 'knowledge_entries';
           const { data: remote, error } = await db.from(table).select('title,body');
           if (error) return;
           const seen = new Set((remote || []).map(x => `${String(x.title).trim().toLowerCase()}||${String(x.body).trim().toLowerCase()}`));
